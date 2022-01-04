@@ -1,0 +1,139 @@
+******  How to build and install the Linux PVF MANA NIC driver  ******
+
+Install Ubuntu 20.04 to the x86-64 Linux physical machine, login to it, and run the below commands to build and install the driver:
+
+$ apt install git flex bison libncurses5-dev libssl-dev libelf-dev libtool-bin autoconf python pkgconf libtool-bin asciidoctor libkmod-dev libudev-dev uuid-dev libjson-c-dev bc make dpkg-dev zstd dwarves nload net-tools iperf
+
+$ git clone https://github.com/dcui/pvf.git -b decui/linus/pvf/v5.16-rc8
+$ cd pvf && cp config.kernel.2022.1.4 .config -iv
+$ make -j16
+$ sudo make INSTALL_MOD_STRIP=1 modules_install 
+$ sudo make install
+$ sudo reboot
+
+Note: before the host is rebooted, it's recommended to enable the serial console logging by updating /etc/default/grub like the below and running "update-grub":
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TIMEOUT=30
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT="ignore_loglevel sysrq_always_enabled console=tty0 console=ttyS0,115200n8"
+GRUB_CMDLINE_LINUX=""
+GRUB_TERMINAL="console serial"
+GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --stop=1 --parity=no --word=8"
+
+With serial console enabled, in case the new kernel fails to boot due to some reason, we're still able to manually choose the Ubuntu kernel shipped with Ubuntu 20.04 from the grub menu, and fix the host.
+
+
+******  How to test the MANA NIC ******
+
+After the host starts again with the newly-installed v5.16-rc8-decui+ kernel, we should see 2 network interfaces: one is "ens6f1" (the MANA network device), and the other is "ens1np0" (the Mellanox NIC).
+
+
+root@decui-u2004-gp:~# lspci | grep Ethernet
+17:00.0 Ethernet controller: Mellanox Technologies MT27800 Family [ConnectX-5]
+4b:00.1 Ethernet controller: Microsoft Corporation Device 00b9
+
+root@decui-u2004-gp:~# dmesg | grep  mana
+[   15.251078] mana 0000:4b:00.1: enabling device (0140 -> 0142)
+[   15.428062] mana 0000:4b:00.1: Microsoft Azure Network Adapter protocol version: 0.1.1
+[   15.594789] usb: port power management may be unreliable
+[   15.755266] mana 0000:4b:00.1 ens6f1: renamed from eth0
+(If the mana NIC driver doesn't load successfully, please share the full "dmesg" log, and please also login to the SoC ARM64 host, and run "ps aux | grep mana" and "top" to verify the SoC PF NIC driver "/usr/bin/mana_netdev_fwd" is running -- if not, please share the output of "cat /etc/os-release; uname -a; lspci").
+
+
+root@decui-u2004-gp:~# modinfo mana | grep filename
+filename:       /lib/modules/5.16.0-rc8-decui+/kernel/drivers/net/ethernet/microsoft/mana/mana.ko
+
+root@decui-u2004-gp:~# ifconfig -a
+ens1np0: flags=4098<BROADCAST,MULTICAST>  mtu 1500
+        ether 04:3f:72:fc:9c:b0  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+ens6f1: flags=4098<BROADCAST,MULTICAST>  mtu 1500
+        ether 04:27:28:03:db:89  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+enx7cc2c619d5e6: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 10.10.206.39  netmask 255.255.254.0  broadcast 10.197.207.255
+        inet6 fe80::7ec2:c6ff:fe19:d5e6  prefixlen 64  scopeid 0x20<link>
+        ether 7c:c2:c6:19:d5:e6  txqueuelen 1000  (Ethernet)
+        RX packets 3403  bytes 261909 (261.9 KB)
+        RX errors 0  dropped 406  overruns 0  frame 0
+        TX packets 361  bytes 55265 (55.2 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 92  bytes 7100 (7.1 KB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 92  bytes 7100 (7.1 KB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+
+root@decui-u2004-gp:~# ethtool -i ens6f1
+driver: mana
+version: 5.16.0-rc8-decui+
+firmware-version:
+expansion-rom-version:
+bus-info: 0000:4b:00.1
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+
+
+root@decui-u2004-gp:~# ethtool -i ens1np0
+driver: mlx5_core
+version: 5.16.0-rc8-decui+
+firmware-version: 16.25.8352 (MSF0000000012)
+expansion-rom-version:
+bus-info: 0000:17:00.0
+supports-statistics: yes
+supports-test: yes
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: yes
+
+Since the MANA NIC and the Mellanox NIC are directly connected to each other in my setup, we're able to run iperf tests between them.
+Note: since both the NICs are local network interfaces, we need to create 2 different network namespaces to force Linux to send traffic from one NIC to the other.
+
+
+Create 2 network namespaces:
+	ip netns add ns_mana
+	ip netns add ns_mlx
+
+Add the MANA NIC to the namespace ns_mana:
+	ip link set ens6f1 netns ns_mana
+	ip netns exec ns_mana ip addr add dev ens6f1 192.168.1.1/24
+	ip netns exec ns_mana ip link set dev ens6f1 up
+
+Add the Mellanox NIC to the namespace ns_mlx:
+	ip link set ens1np0 netns ns_mlx
+	ip netns exec ns_mlx ip addr add dev ens1np0 192.168.1.2/24
+	ip netns exec ns_mlx ip link set dev ens1np0 up
+
+
+Run iperf server on the Mellanox NIC, and run iperf client on the MANA NIC:
+	ip netns exec ns_mlx iperf -s -B 192.168.1.2
+	ip netns exec ns_mana iperf -c 192.168.1.2 -B 192.168.1.1 -P16 -t 60
+
+	Now, we can check the throughput of the MANA NIC by:
+	ip netns exec ns_mana  nload ens6f1
+
+
+Run iperf server on the MANA NIC, and run iperf client on the Mellanox NIC:
+	ip netns exec ns_mana iperf -s -B 192.168.1.1
+	ip netns exec ns_mlx iperf -c 192.168.1.1 -B 192.168.1.2 -P16 -t 60
+	
+	Now, we can check the throughput of the MANA NIC by:
+	ip netns exec ns_mana  nload ens6f1
