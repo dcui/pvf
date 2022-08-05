@@ -7,6 +7,10 @@ $ git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 $ cd linux
 $ git checkout b2a88c212e652e94f1e4b635910972ac57ba4e97  # this is the top commit at 9:41 AM 8/5/2022 PDT
 
+(Note: we can use the pre-generated kernel config file and then directly go to the step that updates scripts/package/mkspec:
+https://github.com/dcui/pvf/blob/decui/5.19/linux-PF-driver-2022-0805/linux-mana-PF-driver/kernel.config)
+
+
 $ cp /boot/config-4.18.0-348.el8.x86_64 .config -iv
 $ sed -i -e 's#CONFIG_MODULE_SIG=y#CONFIG_MODULE_SIG=n#' .config
 $ sed -i -e 's#CONFIG_MODULE_SIG_ALL=y#CONFIG_MODULE_SIG_ALL=n#' .config
