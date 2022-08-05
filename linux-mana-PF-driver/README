@@ -1,0 +1,63 @@
+******  How to build and install the Linux host MANA NIC driver on RHEL 8.5 ******
+
+$ sudo yum install audit-libs-devel binutils-devel elfutils-devel java-devel kabi-dw libcap-devel libcap-ng-devel llvm-toolset ncurses-devel newt-devel numactl-devel openssl-devel pciutils-devel 'perl(ExtUtils::Embed)' perl-devel python3-devel python3-docutils xmlto xz-devel zlib-devel libbpf cscope libmnl-devel bc bpftool rsync -y
+
+$ git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+$ cd linux
+$ git checkout b2a88c212e652e94f1e4b635910972ac57ba4e97  # this is the top commit at 9:41 AM 8/5/2022 PDT
+
+$ cp /boot/config-4.18.0-348.el8.x86_64 .config -iv
+$ sed -i -e 's#CONFIG_MODULE_SIG=y#CONFIG_MODULE_SIG=n#' .config
+$ sed -i -e 's#CONFIG_MODULE_SIG_ALL=y#CONFIG_MODULE_SIG_ALL=n#' .config
+$ sed -i -e 's#CONFIG_MODULE_SIG_KEY="certs/signing_key.pem"#CONFIG_MODULE_SIG_KEY=""#' .config
+$ sed -i -e 's#CONFIG_SYSTEM_TRUSTED_KEYS="certs/rhel.pem"#CONFIG_SYSTEM_TRUSTED_KEYS=""#' .config
+
+$ make localmodconfig   # when being asked for input, press and hold Enter.
+
+$ echo 'CONFIG_MICROSOFT_MANA=m' >> .config
+$ make oldconfig
+$ grep CONFIG_MICROSOFT_MANA .config  # This should output "CONFIG_MICROSOFT_MANA=m"; if not, please run "make menuconfig" and manually set it to m
+
+$ sed -i -e 's# modules_install# INSTALL_MOD_STRIP=1 modules_install#' scripts/package/mkspec
+
+$ git diff   # We should see the below:
+diff --git a/scripts/package/mkspec b/scripts/package/mkspec
+index 7c477ca7dc98..3dd23a2768d7 100755
+--- a/scripts/package/mkspec
++++ b/scripts/package/mkspec
+@@ -90,7 +90,7 @@ $S
+        %else
+        cp \$($MAKE image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+        %endif
+-$M     $MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} modules_install
++$M     $MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} INSTALL_MOD_STRIP=1 INSTALL_MOD_STRIP=1 INSTALL_MOD_STRIP=1 modules_install
+        $MAKE %{?_smp_mflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
+        cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
+        cp .config %{buildroot}/boot/config-$KERNELRELEASE
+
+$ make -j `nproc` binrpm-pkg
+
+Wait some time (this takes 5+ minutes in a 32-CPU virtual machine), and the kernel rpm should be availble at: ~/rpmbuild/RPMS/x86_64/kernel-5.19.0+-1.x86_64.rpm
+
+$ sudo rpm -ivh ~/rpmbuild/RPMS/x86_64/kernel-5.19.0+-1.x86_64.rpm
+
+$ sudo reboot
+
+Note: before the host is rebooted, it's recommended to enable the serial console logging by updating /etc/default/grub like the below and run "grub2-mkconfig -o /boot/grub2/grub.cfg"
+
+GRUB_TIMEOUT=30
+GRUB_DISTRIBUTOR="$(sed 's, release .*$,,g' /etc/system-release)"
+GRUB_DEFAULT=saved
+GRUB_DISABLE_SUBMENU=true
+GRUB_TERMINAL_OUTPUT="serial console"
+GRUB_CMDLINE_LINUX="loglevel=3 crashkernel=auto console=tty1 console=ttyS0 earlyprintk=ttyS0 rootdelay=300"
+GRUB_DISABLE_RECOVERY="true"
+GRUB_ENABLE_BLSCFG=true
+
+GRUB_TIMEOUT_STYLE=menu
+GRUB_TERMINAL="serial console"
+GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1"
+
+With serial console enabled, in case the new kernel fails to boot due to some reason, we're still able to manually choose the good kernel shipped with the distro from the grub menu, and fix the host.
+
