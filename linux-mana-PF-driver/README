@@ -9,6 +9,7 @@ $ git checkout b2a88c212e652e94f1e4b635910972ac57ba4e97  # this is the top commi
 
 (Note: we can use the pre-generated kernel config file and then directly go to the step that updates scripts/package/mkspec:
 https://github.com/dcui/pvf/blob/decui/5.19/linux-PF-driver-2022-0805/linux-mana-PF-driver/kernel.config)
+(Note: see the end of this file for more notes)
 
 
 $ cp /boot/config-4.18.0-348.el8.x86_64 .config -iv
@@ -65,3 +66,11 @@ GRUB_SERIAL_COMMAND="serial --speed=115200 --unit=0 --word=8 --parity=no --stop=
 
 With serial console enabled, in case the new kernel fails to boot due to some reason, we're still able to manually choose the good kernel shipped with the distro from the grub menu, and fix the host.
 
+*************** Kernel Building Notes **********
+If you want to enable more modules (e.g. IPMI, NVMe), please use the file "kernel.config.more_modules" as the kernel config file.
+
+It's recommended to apply the patch "reduce_package_size.patch" to reduce the size of the generated .rpm package.
+
+If there is any build error related to "-Wframe-larger-than" , you may want to apply "fix_build.patch" or simply configure CONFIG_FRAME_WARN=0 in the kernel config file ".config".
+
+You may not want to try "make allmodconfig", as that may generate a non-bootable kernel...

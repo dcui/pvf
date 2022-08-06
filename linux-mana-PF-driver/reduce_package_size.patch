@@ -1,0 +1,20 @@
+diff --git a/scripts/package/mkspec b/scripts/package/mkspec
+index 7c477ca7dc98..8549974c7748 100755
+--- a/scripts/package/mkspec
++++ b/scripts/package/mkspec
+@@ -90,12 +90,12 @@ $S
+ 	%else
+ 	cp \$($MAKE image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+ 	%endif
+-$M	$MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} modules_install
++$M	$MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} INSTALL_MOD_STRIP=1 modules_install
+ 	$MAKE %{?_smp_mflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
+ 	cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
+ 	cp .config %{buildroot}/boot/config-$KERNELRELEASE
+-	bzip2 -9 --keep vmlinux
+-	mv vmlinux.bz2 %{buildroot}/boot/vmlinux-$KERNELRELEASE.bz2
++	#bzip2 -9 --keep vmlinux
++	#mv vmlinux.bz2 %{buildroot}/boot/vmlinux-$KERNELRELEASE.bz2
+ $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
+ $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
+ $S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE

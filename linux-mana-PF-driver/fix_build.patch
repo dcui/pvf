@@ -1,0 +1,26 @@
+diff --git a/Makefile b/Makefile
+index dc6295f91263..18130fca3141 100644
+--- a/Makefile
++++ b/Makefile
+@@ -778,7 +778,7 @@ KBUILD_CFLAGS += -fno-reorder-blocks -fno-ipa-cp-clone -fno-partial-inlining
+ endif
+ 
+ ifneq ($(CONFIG_FRAME_WARN),0)
+-KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
++#KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
+ endif
+ 
+ stackp-flags-y                                    := -fno-stack-protector
+diff --git a/drivers/gpu/drm/amd/display/dc/dml/Makefile b/drivers/gpu/drm/amd/display/dc/dml/Makefile
+index 359f6e9a1da0..42b1df843a6c 100644
+--- a/drivers/gpu/drm/amd/display/dc/dml/Makefile
++++ b/drivers/gpu/drm/amd/display/dc/dml/Makefile
+@@ -51,7 +51,7 @@ endif
+ endif
+ 
+ ifneq ($(CONFIG_FRAME_WARN),0)
+-frame_warn_flag := -Wframe-larger-than=2048
++frame_warn_flag := -Wframe-larger-than=4096
+ endif
+ 
+ CFLAGS_$(AMDDALPATH)/dc/dml/display_mode_lib.o := $(dml_ccflags)
